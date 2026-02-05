@@ -1,0 +1,9 @@
+{
+    "$schema": "https://openapi.vercel.sh/vercel.json",
+    "functions": {
+      "api/**/*.py": {
+        "excludeFiles": "{**/*.pdf,chroma/**,vectorstore/**,**/__pycache__/**}"
+      }
+    }
+  }
+  

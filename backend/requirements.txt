@@ -36,22 +36,6 @@ sqlalchemy==2.0.46
 
 
 # =========================
-# PDF Processing / OCR
-# =========================
-unstructured[pdf]==0.18.3
-pytesseract==0.3.13
-pdf2image==1.17.0
-pillow==12.1.0
-
-
-# =========================
-# Web / HTTP / Scraping
-# =========================
-httpx==0.28.1
-beautifulsoup4==4.14.3
-
-
-# =========================
 # Search
 # =========================
 tavily-python==0.7.21

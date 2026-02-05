@@ -1,0 +1,7 @@
+**/*.pdf
+chroma/
+vectorstore/
+*.sqlite
+*.bin
+.cache/
+__pycache__/

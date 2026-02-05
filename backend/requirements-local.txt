@@ -1,0 +1,31 @@
+# =========================
+# Complete requirements for local development
+# Includes all dependencies for embedding and PDF processing
+# =========================
+
+# Include base requirements
+-r requirements.txt
+
+# =========================
+# PDF Processing / OCR (only needed for local embedding)
+# =========================
+unstructured[pdf]==0.18.3
+pytesseract==0.3.13
+pdf2image==1.17.0
+pillow==12.1.0
+
+# =========================
+# Web Scraping (for local embedding)
+# =========================
+httpx==0.28.1
+beautifulsoup4==4.14.3
+
+# =========================
+# Text Splitting (for local embedding)
+# =========================
+langchain-text-splitters==0.3.0
+
+# =========================
+# Google Maps (if needed for places)
+# =========================
+googlemaps==4.10.0
