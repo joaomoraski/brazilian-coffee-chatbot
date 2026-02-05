@@ -237,7 +237,7 @@ sketch
 
 # Built Visual Studio Code Extensions
 *.vsix
-
+historia-cafe-brasil.pdf
 ### VisualStudioCode Patch ###
 # Ignore all local history of files
 .history
