@@ -13,6 +13,7 @@ import {
 interface UseChatReturn {
   messages: Message[];
   isLoading: boolean;
+  isHistoryLoading: boolean;
   error: string | null;
   sendMessage: (content: string) => Promise<void>;
   clearChat: () => Promise<void>;
@@ -21,6 +22,7 @@ interface UseChatReturn {
 export function useChat(): UseChatReturn {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
 
@@ -40,6 +42,7 @@ export function useChat(): UseChatReturn {
         // Don't clear session - it will be created on first message
       } finally {
         setIsInitialized(true);
+        setIsHistoryLoading(false);
       }
     };
 
@@ -118,6 +121,7 @@ export function useChat(): UseChatReturn {
   return {
     messages,
     isLoading,
+    isHistoryLoading,
     error,
     sendMessage,
     clearChat,

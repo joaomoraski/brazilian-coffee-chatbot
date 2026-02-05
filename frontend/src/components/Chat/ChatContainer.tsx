@@ -7,14 +7,14 @@ import ChatInput from "./ChatInput";
 import CoffeeIcon from "@/components/ui/CoffeeIcon";
 
 export default function ChatContainer() {
-  const { messages, isLoading, error, sendMessage, clearChat } = useChat();
+  const { messages, isLoading, isHistoryLoading, error, sendMessage, clearChat } = useChat();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [showSuggestions, setShowSuggestions] = useState(true);
 
   // Auto-scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, isHistoryLoading]);
 
   const handleSuggestionClick = (text: string) => {
     if (!isLoading) {
@@ -25,7 +25,7 @@ export default function ChatContainer() {
   return (
     <div className="flex flex-col h-[calc(100vh-180px)] bg-white/50 backdrop-blur-sm rounded-3xl shadow-xl border border-coffee-senary/20 overflow-hidden">
       {/* Header with Clear Chat button */}
-      {messages.length > 0 && (
+      {messages.length > 0 && !isHistoryLoading && (
         <div className="flex justify-end px-4 py-2 border-b border-coffee-senary/20">
           <button
             onClick={clearChat}
@@ -42,7 +42,14 @@ export default function ChatContainer() {
 
       {/* Messages area */}
       <div className="flex-1 overflow-y-auto p-6 space-y-4">
-        {messages.length === 0 ? (
+        {isHistoryLoading ? (
+          <div className="h-full flex flex-col items-center justify-center text-center text-gray-500">
+            <CoffeeIcon size={64} className="text-coffee-primary mb-4" animated />
+            <p className="text-sm font-medium text-coffee-primary animate-pulse">
+              Starting coffee machine...
+            </p>
+          </div>
+        ) : messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center text-gray-500">
             <CoffeeIcon size={64} className="text-coffee-primary mb-4" animated />
             <h2 className="text-xl font-semibold text-coffee-primary mb-2">
