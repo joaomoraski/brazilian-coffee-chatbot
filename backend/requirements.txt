@@ -16,12 +16,8 @@ pydantic-settings==2.12.0
 # =========================
 # LangChain / Agents
 # =========================
-langchain==1.2.8
 langchain-core==1.2.8
-langchain-community==0.4.1
 langchain-google-genai==4.2.0
-langchain-google-community==3.0.2
-langchain-google-community[places]
 langgraph==1.0.7
 
 
@@ -36,10 +32,10 @@ sqlalchemy==2.0.46
 
 
 # =========================
-# Search
+# Search / HTTP
 # =========================
 tavily-python==0.7.21
-googlemaps==4.10.0
+httpx==0.28.1
 
 
 # =========================

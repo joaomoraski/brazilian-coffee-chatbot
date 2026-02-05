@@ -1,7 +1,9 @@
+import httpx
 from langchain_core.tools import tool
-from langchain_google_community import GooglePlacesAPIWrapper
 
 from app.settings import settings
+
+PLACES_API_URL = "https://maps.googleapis.com/maps/api/place/textsearch/json"
 
 
 @tool
@@ -20,15 +22,44 @@ def find_coffee_shops(location: str) -> str:
     if not settings.GPLACES_API_KEY:
         return "Google Places API key not configured. Cannot search for coffee shops."
 
-    places = GooglePlacesAPIWrapper(
-        gplaces_api_key=settings.GPLACES_API_KEY,
-        top_k_results=10,
-    )
-
-    query = f"coffee shop in {location}"
-
     try:
-        results = places.run(query)
-        return results
+        response = httpx.get(
+            PLACES_API_URL,
+            params={
+                "query": f"coffee shop in {location}",
+                "key": settings.GPLACES_API_KEY,
+                "language": "pt-BR",
+            },
+            timeout=10.0,
+        )
+        response.raise_for_status()
+        data = response.json()
+
+        if data.get("status") != "OK":
+            return f"No coffee shops found in {location}."
+
+        results = data.get("results", [])[:10]
+
+        if not results:
+            return f"No coffee shops found in {location}."
+
+        # Format results
+        formatted = []
+        for place in results:
+            name = place.get("name", "Unknown")
+            address = place.get("formatted_address", "Address not available")
+            rating = place.get("rating", "N/A")
+            total_ratings = place.get("user_ratings_total", 0)
+            
+            formatted.append(
+                f"**{name}**\n"
+                f"📍 {address}\n"
+                f"⭐ {rating}/5 ({total_ratings} reviews)"
+            )
+
+        return "\n\n---\n\n".join(formatted)
+
+    except httpx.TimeoutException:
+        return "Request timed out. Please try again."
     except Exception as e:
         return f"Error searching for coffee shops: {str(e)}"
