@@ -56,13 +56,27 @@ export default function ChatMessage({ role, content, isStreaming }: ChatMessageP
           <p className="whitespace-pre-wrap">{content}</p>
         ) : (
           <div className="prose prose-sm max-w-none prose-headings:text-coffee-primary prose-a:text-coffee-tertiary prose-strong:text-coffee-primary">
-            <ReactMarkdown>{content}</ReactMarkdown>
-            {isStreaming && (
-              <span className="inline-flex gap-1 ml-1">
-                <span className="typing-dot w-1.5 h-1.5 bg-coffee-primary rounded-full" />
-                <span className="typing-dot w-1.5 h-1.5 bg-coffee-primary rounded-full" />
-                <span className="typing-dot w-1.5 h-1.5 bg-coffee-primary rounded-full" />
-              </span>
+            {/* Show "Thinking..." when streaming but no content yet */}
+            {isStreaming && !content ? (
+              <div className="flex items-center gap-2 text-coffee-primary/70">
+                <span className="text-sm italic">Thinking...</span>
+                <span className="inline-flex gap-1">
+                  <span className="typing-dot w-1.5 h-1.5 bg-coffee-primary rounded-full" />
+                  <span className="typing-dot w-1.5 h-1.5 bg-coffee-primary rounded-full" />
+                  <span className="typing-dot w-1.5 h-1.5 bg-coffee-primary rounded-full" />
+                </span>
+              </div>
+            ) : (
+              <>
+                <ReactMarkdown>{content}</ReactMarkdown>
+                {isStreaming && content && (
+                  <span className="inline-flex gap-1 ml-1">
+                    <span className="typing-dot w-1.5 h-1.5 bg-coffee-primary rounded-full" />
+                    <span className="typing-dot w-1.5 h-1.5 bg-coffee-primary rounded-full" />
+                    <span className="typing-dot w-1.5 h-1.5 bg-coffee-primary rounded-full" />
+                  </span>
+                )}
+              </>
             )}
           </div>
         )}

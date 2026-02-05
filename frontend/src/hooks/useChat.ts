@@ -6,6 +6,8 @@ import {
   streamMessage,
   getSessionId,
   loadSessionMessages,
+  clearChatHistory,
+  clearSession,
 } from "@/lib/api";
 
 interface UseChatReturn {
@@ -13,6 +15,7 @@ interface UseChatReturn {
   isLoading: boolean;
   error: string | null;
   sendMessage: (content: string) => Promise<void>;
+  clearChat: () => Promise<void>;
 }
 
 export function useChat(): UseChatReturn {
@@ -45,16 +48,16 @@ export function useChat(): UseChatReturn {
 
   const sendMessage = useCallback(
     async (content: string) => {
-      if (!isInitialized) return;
+      if (!isInitialized || isLoading) return;
 
       setError(null);
       setIsLoading(true);
 
-      // Add user message
+      // Add user message immediately (optimistic update)
       const userMessage: Message = { role: "user", content };
       setMessages((prev) => [...prev, userMessage]);
 
-      // Add empty assistant message for streaming
+      // Add empty assistant message for streaming (shows "Thinking..." state)
       const assistantMessage: Message = { role: "assistant", content: "" };
       setMessages((prev) => [...prev, assistantMessage]);
 
@@ -90,13 +93,33 @@ export function useChat(): UseChatReturn {
         setIsLoading(false);
       }
     },
-    [isInitialized]
+    [isInitialized, isLoading]
   );
+
+  const clearChat = useCallback(async () => {
+    if (isLoading) return;
+
+    try {
+      const sessionId = getSessionId();
+      await clearChatHistory(sessionId);
+      
+      // Clear local state
+      setMessages([]);
+      setError(null);
+      
+      // Generate new session for fresh start
+      clearSession();
+    } catch (err) {
+      console.error("Failed to clear chat:", err);
+      setError("Failed to clear chat history");
+    }
+  }, [isLoading]);
 
   return {
     messages,
     isLoading,
     error,
     sendMessage,
+    clearChat,
   };
 }

@@ -107,12 +107,61 @@ export async function* streamMessage(
   }
 
   const decoder = new TextDecoder();
+  let buffer = "";
 
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
 
-    const chunk = decoder.decode(value, { stream: true });
-    yield chunk;
+    buffer += decoder.decode(value, { stream: true });
+
+    // Normalize newlines to \n and split by double newline (end of event)
+    // SSE events are separated by two newlines
+    const parts = buffer.replace(/\r\n/g, "\n").split("\n\n");
+
+    // Keep the last part in the buffer as it might be incomplete
+    buffer = parts.pop() || "";
+
+    for (const part of parts) {
+      const lines = part.split("\n");
+      let eventData = "";
+      let isDone = false;
+
+      for (const line of lines) {
+        if (line.startsWith("event: done")) {
+          isDone = true;
+        } else if (line.startsWith("data:")) {
+          // Remove "data:" prefix
+          let content = line.slice(5);
+          // Remove optional leading space (standard in SSE: "data: value")
+          if (content.startsWith(" ")) {
+            content = content.slice(1);
+          }
+
+          if (eventData) {
+            eventData += "\n";
+          }
+          eventData += content;
+        }
+      }
+
+      if (isDone) {
+        return;
+      }
+
+      if (eventData) {
+        yield eventData;
+      }
+    }
+  }
+}
+
+export async function clearChatHistory(sessionId: string): Promise<void> {
+  const response = await fetch(`${API_URL}/sessions/${sessionId}`, {
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to clear chat: ${response.statusText}`);
   }
 }
