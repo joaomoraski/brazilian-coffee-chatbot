@@ -313,12 +313,17 @@ docker-compose up -d
 cd backend
 pip install -r requirements.txt
 
+# Optional: Download additional PDFs to backend/pdfs/
+# Example: wget https://fundar.org.br/wp-content/uploads/2021/06/pequena-historia-do-cafe-no-brasil.pdf -O backend/pdfs/pequena-historia-do-cafe-no-brasil.pdf
+
 # Ingest documents (one-time)
 python -m app.ingestion.embedder
 
 # Start server
 python -m app.main
 ```
+
+**💡 Tip**: You can add more PDFs to `backend/pdfs/` before running ingestion. For example, download [Pequena História do Café no Brasil](https://fundar.org.br/wp-content/uploads/2021/06/pequena-historia-do-cafe-no-brasil.pdf) to expand your knowledge base.
 
 ### 5. Install & Run Frontend
 
@@ -393,6 +398,12 @@ curl -X POST http://localhost:8000/chat/stream \
 ```
 
 **Response:** Plain text stream
+
+---
+
+## 🔮 Future Improvements
+
+- **Cloud Storage Integration**: Use Google Drive, S3, or other cloud storage to maintain PDFs instead of storing them locally. This would enable dynamic document updates without redeployment and better scalability.
 
 ---
 
