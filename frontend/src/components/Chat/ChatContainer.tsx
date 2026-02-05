@@ -60,9 +60,18 @@ export default function ChatContainer() {
 
       {/* Error message */}
       {error && (
-        <div className="px-6 py-2">
-          <div className="bg-coffee-quaternary/10 text-coffee-quaternary text-sm rounded-lg px-4 py-2">
-            {error}
+        <div className="px-6 py-3">
+          <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 flex items-start gap-2">
+            <span className="text-lg">⚠️</span>
+            <div className="flex-1">
+              <strong className="font-semibold">Error:</strong> {error}
+            </div>
+            <button
+              onClick={() => window.location.reload()}
+              className="text-red-600 hover:text-red-800 underline text-xs"
+            >
+              Reload
+            </button>
           </div>
         </div>
       )}
