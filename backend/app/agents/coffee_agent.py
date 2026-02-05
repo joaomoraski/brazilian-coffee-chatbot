@@ -1,12 +1,13 @@
 from typing import AsyncGenerator
 
-from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.prebuilt import create_react_agent
 
+from app.db.session_manager import get_session_history
 from app.settings import settings
-from app.tools.rag_tool import search_coffee_knowledge
 from app.tools.places_tool import find_coffee_shops
+from app.tools.rag_tool import search_coffee_knowledge
 from app.tools.search_tool import search_web
 
 SYSTEM_PROMPT = """You are a helpful assistant specialized in Brazilian coffee.
@@ -71,56 +72,103 @@ def create_coffee_agent():
     return agent
 
 
-async def chat(message: str, history: list = None) -> AsyncGenerator[str, None]:
+async def chat(message: str, session_id: str) -> AsyncGenerator[str, None]:
     """
-    Chat with the coffee agent.
+    Chat with the coffee agent using session history.
 
     Args:
         message: User's message
-        history: Optional chat history
+        session_id: Session ID for history management
 
     Yields:
         Streamed response chunks
+    
+    Raises:
+        Exception: If any error occurs during chat processing
     """
-    agent = create_coffee_agent()
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        agent = create_coffee_agent()
 
-    # Build messages
-    messages = []
-    if history:
-        for msg in history:
-            if msg["role"] == "user":
-                messages.append(HumanMessage(content=msg["content"]))
-            elif msg["role"] == "assistant":
-                messages.append(AIMessage(content=msg["content"]))
+        # Get history from database
+        history_manager = get_session_history(session_id)
+        chat_history: list[BaseMessage] = history_manager.messages
 
-    messages.append(HumanMessage(content=message))
+        # Build messages with context
+        # Only use last 4 messages if there are more than 2 messages for context
+        messages = []
+        if chat_history and len(chat_history) >= 2:
+            # Get last 4 messages (2 exchanges)
+            context_messages = chat_history[-4:]
+            messages.extend(context_messages)
 
-    # Stream response
-    async for event in agent.astream_events(
-        {"messages": messages},
-        version="v2",
-    ):
-        kind = event["event"]
+        # Add current user message
+        messages.append(HumanMessage(content=message))
 
-        if kind == "on_chat_model_stream":
-            content = event["data"]["chunk"].content
-            if content:
-                yield content
+        # Stream response
+        response_parts = []
+        async for event in agent.astream_events(
+            {"messages": messages},
+            version="v2",
+        ):
+            kind = event["event"]
+
+            if kind == "on_chat_model_stream":
+                chunk = event["data"]["chunk"]
+
+                # Get content from chunk (try different attributes)
+                content = None
+                if hasattr(chunk, "content"):
+                    content = chunk.content
+                elif hasattr(chunk, "text"):
+                    content = chunk.text
+
+                # Only yield if we have actual text content
+                if content:
+                    # Handle string content
+                    if isinstance(content, str):
+                        if content.strip():  # Only yield non-empty strings
+                            response_parts.append(content)
+                            yield content
+                    # Handle list of content blocks (from Gemini)
+                    elif isinstance(content, list):
+                        for item in content:
+                            # Extract text from content blocks
+                            if isinstance(item, dict) and "text" in item:
+                                text = item["text"]
+                                if text and text.strip():
+                                    response_parts.append(text)
+                                    yield text
+                            elif isinstance(item, str) and item.strip():
+                                response_parts.append(item)
+                                yield item
+
+        # Save messages to history after streaming completes
+        complete_response = "".join(response_parts)
+        if complete_response:  # Only save if we got a response
+            history_manager.add_user_message(message)
+            history_manager.add_ai_message(complete_response)
+            
+    except Exception as e:
+        logger.error(f"Error in chat for session {session_id}: {str(e)}", exc_info=True)
+        raise
 
 
-async def chat_simple(message: str, history: list = None) -> str:
+async def chat_simple(message: str, session_id: str) -> str:
     """
     Non-streaming chat with the coffee agent.
 
     Args:
         message: User's message
-        history: Optional chat history
+        session_id: Session ID for history management
 
     Returns:
         Complete response
     """
     response_parts = []
-    async for chunk in chat(message, history):
+    async for chunk in chat(message, session_id):
         response_parts.append(chunk)
 
     return "".join(response_parts)

@@ -1,16 +1,8 @@
 -- Enable pgvector extension
 CREATE EXTENSION IF NOT EXISTS vector;
 
--- Create documents table for storing embeddings
-CREATE TABLE IF NOT EXISTS documents (
-    id SERIAL PRIMARY KEY,
-    content TEXT NOT NULL,
-    metadata JSONB,
-    embedding vector(768),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Create index for similarity search
-CREATE INDEX IF NOT EXISTS documents_embedding_idx 
-ON documents USING ivfflat (embedding vector_cosine_ops)
-WITH (lists = 100);
+-- Note: The following tables will be created automatically:
+-- 1. langchain_pg_collection - by PGVector (collection metadata)
+-- 2. langchain_pg_embedding - by PGVector (documents and embeddings)
+-- 3. chat_history - by PostgresChatMessageHistory (chat messages)
+-- All tables are created programmatically on first use

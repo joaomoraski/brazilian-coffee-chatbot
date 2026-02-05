@@ -6,28 +6,24 @@ from langchain_core.documents import Document
 from unstructured.partition.pdf import partition_pdf
 
 
-def load_pdf(file_path: str, use_ocr: bool = False) -> List[Document]:
+def load_pdf(file_path: str) -> List[Document]:
     """
     Load a PDF file and extract text content.
 
     Args:
         file_path: Path to the PDF file
-        use_ocr: Whether to use OCR for scanned documents
 
     Returns:
         List of Document objects with extracted content
     """
     file_name = Path(file_path).name
 
-    # Configure strategy based on OCR requirement
-    strategy = "hi_res" if use_ocr else "auto"
-
     elements = partition_pdf(
         filename=file_path,
-        strategy=strategy,
+        strategy="fast",  # Fast strategy for text-based PDFs
         languages=["por", "eng"],  # Portuguese and English
-        infer_table_structure=True,
-        extract_images_in_pdf=False,  # Skip image extraction for now
+        infer_table_structure=False,  # Disable for speed
+        extract_images_in_pdf=False,
     )
 
     # Group elements into documents
@@ -74,18 +70,16 @@ def load_all_pdfs(pdf_dir: str) -> List[Document]:
     all_documents = []
     pdf_path = Path(pdf_dir)
 
-    # Files that need OCR (scanned documents)
-    ocr_files = {"historia-no-brasil.pdf"}
 
-    for pdf_file in pdf_path.glob("*.pdf"):
+    for pdf_file in sorted(pdf_path.glob("*.pdf")):
+
         print(f"Processing: {pdf_file.name}")
-        use_ocr = pdf_file.name in ocr_files
 
         try:
-            docs = load_pdf(str(pdf_file), use_ocr=use_ocr)
+            docs = load_pdf(str(pdf_file))
             all_documents.extend(docs)
-            print(f"  Extracted {len(docs)} documents")
+            print(f"  ✓ Extracted {len(docs)} documents")
         except Exception as e:
-            print(f"  Error processing {pdf_file.name}: {e}")
+            print(f"  ✗ Error processing {pdf_file.name}: {e}")
 
     return all_documents

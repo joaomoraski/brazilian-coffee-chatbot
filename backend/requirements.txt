@@ -1,37 +1,64 @@
-# FastAPI
-fastapi==0.115.0
-uvicorn[standard]==0.30.6
+# =========================
+# FastAPI & Server
+# =========================
+fastapi==0.128.1
+uvicorn[standard]==0.40.0
 python-multipart==0.0.9
 
+
+# =========================
 # Pydantic
-pydantic==2.9.2
-pydantic-settings==2.5.2
+# =========================
+pydantic==2.12.5
+pydantic-settings==2.12.0
 
-# LangChain
-langchain==0.3.7
-langchain-core==0.3.15
-langchain-community==0.3.5
-langchain-google-genai==2.0.4
-langchain-google-community==2.0.1
-langgraph==0.2.45
 
-# Vector Store
-pgvector==0.3.5
-psycopg2-binary==2.9.9
-sqlalchemy==2.0.35
+# =========================
+# LangChain / Agents
+# =========================
+langchain==1.2.8
+langchain-core==1.2.8
+langchain-community==0.4.1
+langchain-google-genai==4.2.0
+langchain-google-community==3.0.2
+# langchain-google-community[places]
+langgraph==1.0.7
 
-# PDF Processing
-unstructured[pdf]==0.15.13
+
+# =========================
+# Vector Store / Database
+# =========================
+langchain-postgres==0.0.16
+pgvector==0.4.2
+psycopg[binary]==3.2.5
+psycopg-pool==3.3.0
+sqlalchemy==2.0.46
+
+
+# =========================
+# PDF Processing / OCR
+# =========================
+unstructured[pdf]==0.18.3
 pytesseract==0.3.13
 pdf2image==1.17.0
-pillow==10.4.0
+pillow==12.1.0
 
-# Web Scraping
-beautifulsoup4==4.12.3
-httpx==0.27.2
 
+# =========================
+# Web / HTTP / Scraping
+# =========================
+httpx==0.28.1
+beautifulsoup4==4.14.3
+
+
+# =========================
 # Search
-tavily-python==0.5.0
+# =========================
+tavily-python==0.7.21
+googlemaps==4.10.0
 
+
+# =========================
 # Utilities
-python-dotenv==1.0.1
+# =========================
+python-dotenv==1.2.1

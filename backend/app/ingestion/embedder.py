@@ -61,16 +61,44 @@ def ingest_all_documents(pdf_dir: str) -> int:
 
     # Store in vector database
     print("\n=== Storing in Vector Database ===")
+    print(f"Embedding and storing {len(chunked_docs)} chunks...")
+    print("This may take a few minutes (embedding generation + DB insert)...")
+    
     vector_store = get_vector_store()
-    vector_store.add_documents(chunked_docs)
-    print("Documents stored successfully!")
+    
+    # Add documents in batches with progress
+    batch_size = 50  # Smaller batches for more frequent updates
+    total_batches = (len(chunked_docs) + batch_size - 1) // batch_size
+    
+    for i in range(0, len(chunked_docs), batch_size):
+        batch = chunked_docs[i : i + batch_size]
+        batch_num = (i // batch_size) + 1
+        
+        vector_store.add_documents(batch)
+        
+        completed = min(i + batch_size, len(chunked_docs))
+        print(f"  [{batch_num}/{total_batches}] Processed {completed}/{len(chunked_docs)} chunks...")
+    
+    print("✓ Documents stored successfully!")
 
     return len(chunked_docs)
 
 
 if __name__ == "__main__":
     import os
+    import time
 
+    start_time = time.time()
     pdf_dir = os.path.join(os.path.dirname(__file__), "..", "..", "pdfs")
     count = ingest_all_documents(pdf_dir)
-    print(f"\nIngestion complete! Total documents: {count}")
+    
+    elapsed = time.time() - start_time
+    minutes = int(elapsed // 60)
+    seconds = int(elapsed % 60)
+    
+    print(f"\n{'='*60}")
+    print(f"✓ Ingestion Complete!")
+    print(f"{'='*60}")
+    print(f"  Total chunks stored: {count}")
+    print(f"  Time elapsed: {minutes}m {seconds}s")
+    print(f"{'='*60}")

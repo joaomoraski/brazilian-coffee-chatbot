@@ -1,6 +1,5 @@
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
-from langchain_community.vectorstores import PGVector
-from sqlalchemy import create_engine
+from langchain_postgres import PGVector
 
 from app.settings import settings
 
@@ -16,12 +15,15 @@ def get_embeddings() -> GoogleGenerativeAIEmbeddings:
 def get_vector_store() -> PGVector:
     """Get PGVector store instance."""
     embeddings = get_embeddings()
+    
+    # Convert psycopg2 URL to psycopg3 format
+    connection = settings.DATABASE_URL.replace("postgresql://", "postgresql+psycopg://")
 
     return PGVector(
-        connection_string=settings.DATABASE_URL,
-        embedding_function=embeddings,
+        embeddings=embeddings,
         collection_name="coffee_documents",
-        distance_strategy="cosine",
+        connection=connection,
+        use_jsonb=True,
     )
 
 
