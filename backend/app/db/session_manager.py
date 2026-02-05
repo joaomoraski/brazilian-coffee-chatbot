@@ -1,5 +1,7 @@
+from contextlib import contextmanager
 from functools import lru_cache
 
+import psycopg
 from langchain_postgres import PostgresChatMessageHistory
 from psycopg_pool import ConnectionPool
 
@@ -17,7 +19,7 @@ def get_connection_pool() -> ConnectionPool:
         _connection_pool = ConnectionPool(
             conninfo=settings.DATABASE_URL,
             min_size=2,
-            max_size=10,
+            max_size=20,  # Increased for better concurrency
             open=True,
         )
     return _connection_pool
@@ -53,24 +55,30 @@ def _ensure_table_exists():
         pool.putconn(connection)
 
 
-def get_session_history(session_id: str) -> PostgresChatMessageHistory:
-    """Get chat history for a session using langchain_postgres."""
-    # Ensure table exists first
+@contextmanager
+def get_session_history(session_id: str):
+    """
+    Context manager for PostgresChatMessageHistory.
+    
+    Properly manages connection pool lifecycle:
+    - Gets a connection from the pool
+    - Yields PostgresChatMessageHistory
+    - Returns connection to pool after use
+    
+    Usage:
+        with get_session_history(session_id) as history:
+            messages = history.messages
+            history.add_user_message(...)
+    """
     _ensure_table_exists()
     
     pool = get_connection_pool()
-    connection = pool.getconn()
-
-    # PostgresChatMessageHistory - positional args: table_name, session_id
-    return PostgresChatMessageHistory(
-        "chat_history",  # table_name (positional)
-        session_id,      # session_id (positional)
-        sync_connection=connection,  # keyword argument
-    )
-
-
-def return_connection(history: PostgresChatMessageHistory):
-    """Return connection to pool after use."""
-    pool = get_connection_pool()
-    if history.sync_connection:
-        pool.putconn(history.sync_connection)
+    
+    # Use pool's context manager to automatically return connection
+    with pool.connection() as conn:
+        history = PostgresChatMessageHistory(
+            "chat_history",
+            session_id,
+            sync_connection=conn,
+        )
+        yield history

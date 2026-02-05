@@ -31,7 +31,15 @@ You have access to a comprehensive knowledge base about:
    - Use 'search_web' when the knowledge base doesn't have enough info or for current events
 
 3. Be friendly, informative, and passionate about coffee!
+
 4. If you don't know something, say so honestly and use the web search tool.
+
+5. **IMPORTANT - Stay on Topic:**
+   - You ONLY answer questions about coffee, specifically Brazilian coffee.
+   - If the user asks about unrelated topics (fruits like mango, animals like monkeys, politics, sports, etc.), politely decline and redirect to coffee.
+   - Do NOT use any tools (web search, places, knowledge base) for off-topic questions.
+   - For off-topic requests, respond with something like: "I'm specialized in Brazilian coffee! I can't help with [topic], but I'd love to tell you about coffee. What would you like to know about Brazilian coffee?"
+   - Only use tools when the question is clearly about coffee or finding coffee shops.
 """
 
 
@@ -92,64 +100,66 @@ async def chat(message: str, session_id: str) -> AsyncGenerator[str, None]:
     try:
         agent = create_coffee_agent()
 
-        # Get history from database
-        history_manager = get_session_history(session_id)
-        chat_history: list[BaseMessage] = history_manager.messages
+        # Use context manager to properly manage database connection
+        with get_session_history(session_id) as history_manager:
+            # Get history from database
+            chat_history: list[BaseMessage] = history_manager.messages
 
-        # Build messages with context
-        # Only use last 4 messages if there are more than 2 messages for context
-        messages = []
-        if chat_history and len(chat_history) >= 2:
-            # Get last 4 messages (2 exchanges)
-            context_messages = chat_history[-4:]
-            messages.extend(context_messages)
+            # Build messages with context
+            # Only use last 4 messages if there are more than 2 messages for context
+            messages = []
+            if chat_history and len(chat_history) >= 2:
+                # Get last 4 messages (2 exchanges)
+                context_messages = chat_history[-4:]
+                messages.extend(context_messages)
 
-        # Add current user message
-        messages.append(HumanMessage(content=message))
+            # Add current user message
+            messages.append(HumanMessage(content=message))
 
-        # Stream response
-        response_parts = []
-        async for event in agent.astream_events(
-            {"messages": messages},
-            version="v2",
-        ):
-            kind = event["event"]
+            # Stream response
+            response_parts = []
+            async for event in agent.astream_events(
+                {"messages": messages},
+                version="v2",
+            ):
+                kind = event["event"]
 
-            if kind == "on_chat_model_stream":
-                chunk = event["data"]["chunk"]
+                if kind == "on_chat_model_stream":
+                    chunk = event["data"]["chunk"]
 
-                # Get content from chunk (try different attributes)
-                content = None
-                if hasattr(chunk, "content"):
-                    content = chunk.content
-                elif hasattr(chunk, "text"):
-                    content = chunk.text
+                    # Get content from chunk (try different attributes)
+                    content = None
+                    if hasattr(chunk, "content"):
+                        content = chunk.content
+                    elif hasattr(chunk, "text"):
+                        content = chunk.text
 
-                # Only yield if we have actual text content
-                if content:
-                    # Handle string content
-                    if isinstance(content, str):
-                        if content.strip():  # Only yield non-empty strings
-                            response_parts.append(content)
-                            yield content
-                    # Handle list of content blocks (from Gemini)
-                    elif isinstance(content, list):
-                        for item in content:
-                            # Extract text from content blocks
-                            if isinstance(item, dict) and "text" in item:
-                                text = item["text"]
-                                if text and text.strip():
-                                    response_parts.append(text)
-                                    yield text
-                            elif isinstance(item, str) and item.strip():
-                                response_parts.append(item)
-                                yield item
+                    # Only yield if we have actual text content
+                    if content:
+                        # Handle string content
+                        if isinstance(content, str):
+                            if content.strip():  # Only yield non-empty strings
+                                response_parts.append(content)
+                                yield content
+                        # Handle list of content blocks (from Gemini)
+                        elif isinstance(content, list):
+                            for item in content:
+                                # Extract text from content blocks
+                                if isinstance(item, dict) and "text" in item:
+                                    text = item["text"]
+                                    if text and text.strip():
+                                        response_parts.append(text)
+                                        yield text
+                                elif isinstance(item, str) and item.strip():
+                                    response_parts.append(item)
+                                    yield item
 
-        # Save messages to history after streaming completes
-        complete_response = "".join(response_parts)
-        if complete_response:  # Only save if we got a response
-            history_manager.add_user_message(message)
-            history_manager.add_ai_message(complete_response)
+            # Save messages to history after streaming completes
+            complete_response = "".join(response_parts)
+            if complete_response:  # Only save if we got a response
+                history_manager.add_user_message(message)
+                history_manager.add_ai_message(complete_response)
+            # Connection automatically returned to pool when context exits
             
     except Exception as e:
         logger.error(f"Error in chat for session {session_id}: {str(e)}", exc_info=True)

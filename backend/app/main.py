@@ -1,11 +1,11 @@
 import logging
 from contextlib import asynccontextmanager
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+from sse_starlette.sse import EventSourceResponse
 
 from app.agents.coffee_agent import chat, chat_simple
 from app.db.session_manager import get_session_history
@@ -83,22 +83,21 @@ async def root():
 async def get_session_messages_endpoint(session_id: UUID):
     """Get messages for a session from the database."""
     try:
-        history = get_session_history(str(session_id))
-        
-        # Check if messages exist (new sessions will have empty history)
-        try:
-            messages = history.messages
-        except Exception:
-            # Session doesn't exist yet or table not created, return empty
-            return {"messages": []}
+        with get_session_history(str(session_id)) as history:
+            # Check if messages exist (new sessions will have empty history)
+            try:
+                messages = history.messages
+            except Exception:
+                # Session doesn't exist yet or table not created, return empty
+                return {"messages": []}
 
-        # Convert LangChain messages to API format
-        formatted_messages = []
-        for msg in messages:
-            role = "user" if msg.type == "human" else "assistant"
-            formatted_messages.append({"role": role, "content": msg.content})
+            # Convert LangChain messages to API format
+            formatted_messages = []
+            for msg in messages:
+                role = "user" if msg.type == "human" else "assistant"
+                formatted_messages.append({"role": role, "content": msg.content})
 
-        return {"messages": formatted_messages}
+            return {"messages": formatted_messages}
     except Exception as e:
         # Return empty array for non-existent sessions instead of error
         logger.debug(f"Session {session_id} not found or empty: {e}")
@@ -127,34 +126,45 @@ async def chat_endpoint(request: ChatRequest):
 @app.post("/chat/stream")
 async def chat_stream_endpoint(request: ChatRequest):
     """
-    Streaming chat endpoint.
+    SSE streaming chat endpoint for real-time responses.
 
     Args:
         request: Chat request with message and session_id
 
     Returns:
-        Streamed response from the agent
+        Server-Sent Events stream from the agent
     """
-    import logging
-    logger = logging.getLogger(__name__)
-
     async def generate():
         try:
             async for chunk in chat(request.message, str(request.session_id)):
-                yield chunk
+                yield {"event": "message", "data": chunk}
+            yield {"event": "done", "data": ""}
         except Exception as e:
             logger.error(f"Stream error for session {request.session_id}: {str(e)}", exc_info=True)
-            # Don't yield error message - let frontend handle it
-            raise
+            yield {"event": "error", "data": str(e)}
 
+    return EventSourceResponse(generate())
+
+
+@app.delete("/sessions/{session_id}")
+async def delete_session_messages(session_id: UUID):
+    """
+    Delete all messages for a session from PostgreSQL.
+
+    Args:
+        session_id: The session UUID to clear
+
+    Returns:
+        Status confirmation
+    """
     try:
-        return StreamingResponse(
-            generate(),
-            media_type="text/plain",
-        )
+        with get_session_history(str(session_id)) as history:
+            history.clear()  # Executes DELETE FROM chat_history WHERE session_id = ?
+            logger.info(f"Cleared session {session_id}")
+        return {"status": "cleared"}
     except Exception as e:
-        logger.error(f"Failed to start stream: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to process chat request")
+        logger.error(f"Failed to clear session {session_id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to clear session")
 
 
 if __name__ == "__main__":
