@@ -1,3 +1,5 @@
+from functools import lru_cache
+
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_postgres import PGVector
 
@@ -5,20 +7,22 @@ from app.settings import settings
 
 
 def get_embeddings() -> GoogleGenerativeAIEmbeddings:
-    """Get Gemini embeddings model."""
+    """Get Gemini embeddings model. Uses gemini-embedding-001 (models/embedding-001 is deprecated)."""
     return GoogleGenerativeAIEmbeddings(
-        model="models/embedding-001",
+        model="gemini-embedding-001",
         google_api_key=settings.GOOGLE_API_KEY,
     )
 
 
+@lru_cache(maxsize=1)
 def get_vector_store() -> PGVector:
-    """Get PGVector store instance."""
+    """
+    Get PGVector store instance (cached).
+    Single instance per process avoids SQLAlchemy 'Table already defined' errors
+    when the RAG tool is called multiple times.
+    """
     embeddings = get_embeddings()
-    
-    # Convert psycopg2 URL to psycopg3 format
     connection = settings.DATABASE_URL.replace("postgresql://", "postgresql+psycopg://")
-
     return PGVector(
         embeddings=embeddings,
         collection_name="coffee_documents",

@@ -85,13 +85,16 @@ def create_coffee_agent():
 async def chat(message: str, session_id: str) -> AsyncGenerator[str, None]:
     """
     Chat with the coffee agent using session history.
+    
+    Streams response chunks directly from the model as they are generated,
+    providing true real-time streaming without buffering.
 
     Args:
         message: User's message
         session_id: Session ID for history management
 
     Yields:
-        Streamed response chunks
+        Streamed response chunks directly from the LLM
     
     Raises:
         Exception: If any error occurs during chat processing
@@ -118,43 +121,52 @@ async def chat(message: str, session_id: str) -> AsyncGenerator[str, None]:
             # Add current user message
             messages.append(HumanMessage(content=message))
 
-            # Stream response
+            # Stream response directly from agent using astream
+            # Filter to only stream the FINAL AI response, not intermediate tool results
             response_parts = []
-            async for event in agent.astream_events(
+            
+            async for chunk in agent.astream(
                 {"messages": messages},
-                version="v2",
+                stream_mode="messages",  # Stream message chunks directly
             ):
-                kind = event["event"]
-
-                if kind == "on_chat_model_stream":
-                    chunk = event["data"]["chunk"]
-
-                    # Get content from chunk (try different attributes)
-                    content = None
-                    if hasattr(chunk, "content"):
-                        content = chunk.content
-                    elif hasattr(chunk, "text"):
-                        content = chunk.text
-
-                    # Only yield if we have actual text content
-                    if content:
-                        # Handle string content
-                        if isinstance(content, str):
-                            if content.strip():  # Only yield non-empty strings
-                                response_parts.append(content)
-                                yield content
-                        # Handle list of content blocks (from Gemini)
-                        elif isinstance(content, list):
-                            for item in content:
-                                # Extract text from content blocks
-                                if isinstance(item, dict) and "text" in item:
-                                    text = item["text"]
-                                    if text and text.strip():
-                                        response_parts.append(text)
-                                        yield text
-                                elif isinstance(item, str) and item.strip():
-                                    response_parts.append(item)
-                                    yield item
+                # Extract content from the message chunk
+                # chunk is a tuple: (message, metadata)
+                if isinstance(chunk, tuple):
+                    msg, metadata = chunk
+                else:
+                    msg = chunk
+                
+                # CRITICAL FILTER: Only stream AIMessage (final response), skip ToolMessage (tool results)
+                # This prevents streaming raw tool outputs (like PDF chunks) to the user
+                from langchain_core.messages import AIMessage as AIMessageType, ToolMessage
+                
+                # Skip tool messages (intermediate results from tools)
+                if isinstance(msg, ToolMessage):
+                    continue
+                
+                # Only process AI messages (final response from LLM after using tools)
+                if not isinstance(msg, AIMessageType):
+                    continue
+                    
+                # Get the actual message content
+                if hasattr(msg, "content") and msg.content:
+                    content = msg.content
+                    
+                    # Handle string content
+                    if isinstance(content, str) and content.strip():
+                        response_parts.append(content)
+                        yield content  # Yield immediately without buffering
+                    # Handle list of content blocks (Gemini format)
+                    elif isinstance(content, list):
+                        for item in content:
+                            if isinstance(item, dict) and "text" in item:
+                                text = item["text"]
+                                if text and text.strip():
+                                    response_parts.append(text)
+                                    yield text  # Yield immediately
+                            elif isinstance(item, str) and item.strip():
+                                response_parts.append(item)
+                                yield item  # Yield immediately
 
             # Save messages to history after streaming completes
             complete_response = "".join(response_parts)
