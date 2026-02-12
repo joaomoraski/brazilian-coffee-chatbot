@@ -1,6 +1,7 @@
 "use client";
 
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import CoffeeIcon from "@/components/ui/CoffeeIcon";
 
 interface ChatMessageProps {
@@ -68,7 +69,7 @@ export default function ChatMessage({ role, content, isStreaming }: ChatMessageP
               </div>
             ) : (
               <>
-                <ReactMarkdown>{content}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
                 {isStreaming && content && (
                   <span className="inline-flex gap-1 ml-1">
                     <span className="typing-dot w-1.5 h-1.5 bg-coffee-primary rounded-full" />
