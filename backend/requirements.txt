@@ -17,9 +17,9 @@ pydantic-settings==2.12.0
 # =========================
 # LangChain / Agents
 # =========================
+langchain>=1.0.0
 langchain-core==1.2.8
 langchain-google-genai==4.2.0
-langgraph==1.0.7
 
 
 # =========================

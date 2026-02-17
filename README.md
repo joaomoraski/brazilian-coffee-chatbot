@@ -50,7 +50,7 @@ graph TD
     Frontend -->|HTTP Request| Backend[FastAPI Backend]
     
     subgraph Backend["Backend (FastAPI)"]
-        Agent[LangGraph ReAct Agent]
+        Agent[LangChain Agent]
         
         subgraph Tools
             RAG["RAG Tool<br/>(Knowledge Base)"]
@@ -80,7 +80,7 @@ graph TD
 |-----------|---------------|
 | **Next.js Frontend** | Chat UI with streaming support, coffee-themed design |
 | **FastAPI Backend** | REST API, request handling, CORS |
-| **LangGraph Agent** | Decision-making: which tool to use based on user intent |
+| **LangChain Agent** | Decision-making: which tool to use based on user intent |
 | **RAG Tool** | Search knowledge base for coffee information |
 | **Places Tool** | Find coffee shops via Google Places API |
 | **Tavily Tool** | Web search for current/missing information |
@@ -213,14 +213,6 @@ chunk_overlap=200  # Preserves context at boundaries
 - Preserves document structure
 - Portuguese language support
 
-### Agent Framework: LangGraph
-
-**Why LangGraph over LangChain Agents?**
-- Better streaming support
-- More control over agent flow
-- Production-ready state management
-- Easier debugging with LangSmith
-
 ### Frontend: Next.js + Tailwind
 
 **Why Next.js?**
@@ -238,7 +230,7 @@ brazilian-coffee-chatbot/
 ├── backend/
 │   ├── app/
 │   │   ├── agents/
-│   │   │   └── coffee_agent.py    # LangGraph ReAct agent
+│   │   │   └── coffee_agent.py    # LangChain agent (create_agent)
 │   │   ├── db/
 │   │   │   └── vector_store.py    # pgvector connection
 │   │   ├── ingestion/
@@ -370,34 +362,25 @@ print(f'Scraped {len(docs)} documents')
 
 ## 📚 API Reference
 
-### POST /chat
-
-Non-streaming chat response.
-
-```bash
-curl -X POST http://localhost:8000/chat \
-  -H "Content-Type: application/json" \
-  -d '{"message": "How to brew coffee?", "history": []}'
-```
-
-**Response:**
-```json
-{
-  "response": "There are several popular brewing methods..."
-}
-```
-
 ### POST /chat/stream
 
-Streaming chat response (Server-Sent Events).
+Streaming chat (Server-Sent Events). Frontend uses this for real-time responses.
 
 ```bash
 curl -X POST http://localhost:8000/chat/stream \
   -H "Content-Type: application/json" \
-  -d '{"message": "How to brew coffee?", "history": []}'
+  -d '{"message": "How to brew coffee?", "session_id": "<uuid>"}'
 ```
 
-**Response:** Plain text stream
+**Response:** SSE stream (`event: message` with text chunks; `event: done` when finished).
+
+### GET /sessions/{session_id}/messages
+
+Load chat history for a session.
+
+### DELETE /sessions/{session_id}
+
+Clear all messages for a session.
 
 ---
 
@@ -417,4 +400,4 @@ MIT License - See [LICENSE](LICENSE) for details.
 
 - Coffee PDFs sourced from Brazilian agricultural research institutions
 - [ARAM Brasil](https://arambrasil.coffee) for coffee history content
-- Built with [LangChain](https://langchain.com) and [LangGraph](https://langchain-ai.github.io/langgraph/)
+- Built with [LangChain](https://langchain.com)

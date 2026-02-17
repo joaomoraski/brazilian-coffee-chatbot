@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
-from app.agents.coffee_agent import chat, chat_simple
+from app.agents.coffee_agent import chat
 from app.db.session_manager import get_session_history
 from app.settings import get_cors_origins
 
@@ -52,26 +52,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-class Message(BaseModel):
-    """Chat message model."""
-
-    role: str  # "user" or "assistant"
-    content: str
-
-
 class ChatRequest(BaseModel):
-    """Chat request model."""
-
     message: str
-    session_id: UUID  # Now required
-
-
-class ChatResponse(BaseModel):
-    """Chat response model."""
-
-    response: str
-
+    session_id: UUID
 
 @app.get("/")
 async def root():
@@ -81,7 +64,6 @@ async def root():
 
 @app.get("/sessions/{session_id}/messages")
 async def get_session_messages_endpoint(session_id: UUID):
-    """Get messages for a session from the database."""
     try:
         with get_session_history(str(session_id)) as history:
             # Check if messages exist (new sessions will have empty history)
@@ -102,25 +84,6 @@ async def get_session_messages_endpoint(session_id: UUID):
         # Return empty array for non-existent sessions instead of error
         logger.debug(f"Session {session_id} not found or empty: {e}")
         return {"messages": []}
-
-
-@app.post("/chat", response_model=ChatResponse)
-async def chat_endpoint(request: ChatRequest):
-    """
-    Non-streaming chat endpoint.
-
-    Args:
-        request: Chat request with message and session_id
-
-    Returns:
-        Complete response
-    """
-    try:
-        response = await chat_simple(request.message, str(request.session_id))
-        return ChatResponse(response=response)
-    except Exception as e:
-        logger.error(f"Chat error for session {request.session_id}: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to process chat request")
 
 
 @app.post("/chat/stream")

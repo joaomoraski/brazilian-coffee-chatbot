@@ -1,7 +1,4 @@
 from contextlib import contextmanager
-from functools import lru_cache
-
-import psycopg
 from langchain_postgres import PostgresChatMessageHistory
 from psycopg_pool import ConnectionPool
 
@@ -26,6 +23,9 @@ def get_connection_pool() -> ConnectionPool:
 
 
 def _ensure_table_exists():
+    """
+    TODO: Move this to a Alembic migration.
+    """
     """Ensure the chat_history table exists."""
     global _table_initialized
     if _table_initialized:

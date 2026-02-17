@@ -1,8 +1,8 @@
 from typing import AsyncGenerator
 
+from langchain.agents import create_agent
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
-from langgraph.prebuilt import create_react_agent
 
 from app.db.session_manager import get_session_history
 from app.settings import settings
@@ -73,10 +73,10 @@ def create_coffee_agent():
     llm = get_llm()
     tools = get_tools()
 
-    agent = create_react_agent(
-        model=llm,
+    agent = create_agent(
+        llm,
         tools=tools,
-        prompt=SYSTEM_PROMPT,
+        system_prompt=SYSTEM_PROMPT,
     )
 
     return agent
@@ -178,21 +178,3 @@ async def chat(message: str, session_id: str) -> AsyncGenerator[str, None]:
     except Exception as e:
         logger.error(f"Error in chat for session {session_id}: {str(e)}", exc_info=True)
         raise
-
-
-async def chat_simple(message: str, session_id: str) -> str:
-    """
-    Non-streaming chat with the coffee agent.
-
-    Args:
-        message: User's message
-        session_id: Session ID for history management
-
-    Returns:
-        Complete response
-    """
-    response_parts = []
-    async for chunk in chat(message, session_id):
-        response_parts.append(chunk)
-
-    return "".join(response_parts)
