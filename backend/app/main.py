@@ -70,7 +70,7 @@ async def get_session_messages_endpoint(session_id: UUID):
             try:
                 messages = history.messages
             except Exception:
-                # Session doesn't exist yet or table not created, return empty
+                # Session doesn't exist yet, return empty
                 return {"messages": []}
 
             # Convert LangChain messages to API format
