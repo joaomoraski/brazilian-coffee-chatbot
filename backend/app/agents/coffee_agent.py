@@ -45,17 +45,28 @@ You have access to a comprehensive knowledge base about:
 """
 
 
-def get_llm() -> ChatGoogleGenerativeAI:
-    """Get the Gemini LLM instance."""
+def _make_gemini_llm(model: str) -> ChatGoogleGenerativeAI:
+    """Create a Gemini LLM with shared config."""
     return ChatGoogleGenerativeAI(
-        model="gemini-3-pro-preview",
+        model=model,
         google_api_key=settings.GOOGLE_API_KEY,
         temperature=1.0,
         max_tokens=None,
-        timeout=None,
-        max_retries=2,
+        timeout=20,
+        max_retries=4,
         streaming=True,
         convert_system_message_to_human=True,
+    )
+
+
+def get_llm():
+    """Get the Gemini LLM with fallback for traffic spikes (429/503)."""
+    primary = _make_gemini_llm("gemini-3-pro-preview")
+    fallback = _make_gemini_llm("gemini-3-flash-preview")
+    flash_fallback = _make_gemini_llm("gemini-2.5-flash")
+    return primary.with_fallbacks(
+        [fallback, flash_fallback],
+        exceptions_to_handle=(Exception,),
     )
 
 
