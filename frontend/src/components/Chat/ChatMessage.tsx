@@ -6,6 +6,8 @@ import CoffeeIcon from "@/components/ui/CoffeeIcon";
 import { Source } from "@/lib/api";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+// Separate service that only serves PDFs (lighter Vercel deployment)
+const PDF_API_URL = process.env.NEXT_PUBLIC_PDF_API_URL || "http://localhost:8001";
 
 interface ChatMessageProps {
   role: "user" | "assistant";
@@ -98,7 +100,10 @@ export default function ChatMessage({ role, content, isStreaming, sources }: Cha
                       <span className="text-xs font-medium text-coffee-primary/70">Sources:</span>
                       {sources.map((source, i) => {
                         const isExternal = source.url.startsWith("http");
-                        const href = isExternal ? source.url : `${API_URL}${source.url}`;
+                        // PDFs (/pdfs/...) are served by the dedicated PDF API
+                        const href = isExternal
+                          ? source.url
+                          : `${PDF_API_URL}${source.url}`;
                         // For external links use the source name directly; for PDFs humanize the filename
                         const rawLabel = isExternal ? source.name : humanizeName(source.name);
                         const label = truncate(rawLabel);

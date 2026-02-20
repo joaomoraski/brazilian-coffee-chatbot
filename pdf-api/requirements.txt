@@ -1,0 +1,4 @@
+# Minimal API – only what's needed to serve static PDF files
+fastapi==0.128.1
+uvicorn[standard]==0.40.0
+python-multipart==0.0.9

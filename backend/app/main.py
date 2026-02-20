@@ -1,12 +1,10 @@
 import json
 import logging
 from contextlib import asynccontextmanager
-from pathlib import Path
 from uuid import UUID
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
@@ -64,14 +62,6 @@ async def root():
     """Health check endpoint."""
     return {"status": "healthy", "service": "Brazilian Coffee Chatbot"}
 
-
-@app.get("/pdfs/{filename}")
-async def serve_pdf(filename: str):
-    """Serve a PDF file from the pdfs directory."""
-    pdf_path = Path(__file__).resolve().parent.parent / "pdfs" / filename
-    if not pdf_path.exists():
-        raise HTTPException(status_code=404, detail="PDF not found")
-    return FileResponse(pdf_path, media_type="application/pdf")
 
 
 @app.get("/sessions/{session_id}/messages")
