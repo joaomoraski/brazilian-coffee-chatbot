@@ -201,7 +201,12 @@ async def chat(message: str, session_id: str) -> AsyncGenerator[str | dict, None
             complete_response = "".join(response_parts)
             if complete_response:  # Only save if we got a response
                 history_manager.add_user_message(message)
-                history_manager.add_ai_message(complete_response)
+                # Persist sources inside additional_kwargs so they survive page refreshes
+                ai_msg = AIMessage(
+                    content=complete_response,
+                    additional_kwargs={"sources": collected_sources} if collected_sources else {},
+                )
+                history_manager.add_message(ai_msg)
             # Connection automatically returned to pool when context exits
 
     except Exception as e:

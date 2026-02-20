@@ -79,7 +79,13 @@ async def get_session_messages_endpoint(session_id: UUID):
             formatted_messages = []
             for msg in messages:
                 role = "user" if msg.type == "human" else "assistant"
-                formatted_messages.append({"role": role, "content": msg.content})
+                entry: dict = {"role": role, "content": msg.content}
+                # Re-attach sources that were persisted in additional_kwargs
+                if role == "assistant":
+                    sources = getattr(msg, "additional_kwargs", {}).get("sources")
+                    if sources:
+                        entry["sources"] = sources
+                formatted_messages.append(entry)
 
             return {"messages": formatted_messages}
     except Exception as e:

@@ -9,6 +9,16 @@ _connection_pool: ConnectionPool | None = None
 _table_initialized: bool = False
 
 
+def _check_connection(conn):
+    """
+    Verify the connection is alive before the pool hands it out.
+    If the server closed it (idle timeout, restart, network), this raises
+    and the pool discards it and opens a new one — avoiding "discarding
+    closed connection [BAD]" when the connection is returned after use.
+    """
+    conn.execute("SELECT 1")
+
+
 def get_connection_pool() -> ConnectionPool:
     """Get or create sync connection pool."""
     global _connection_pool
@@ -18,6 +28,9 @@ def get_connection_pool() -> ConnectionPool:
             min_size=2,
             max_size=20,  # Increased for better concurrency
             open=True,
+            check=_check_connection,
+            # Close idle connections after 5 min so they don't get killed by server first
+            max_idle=300.0,
         )
     return _connection_pool
 

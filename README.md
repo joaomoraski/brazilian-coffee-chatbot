@@ -32,6 +32,7 @@ Built with **RAG (Retrieval-Augmented Generation)** architecture using LangChain
 - **Web Search Fallback**: Search the web when local knowledge isn't enough
 - **Multilingual**: Responds in the same language the user writes (Portuguese, English, etc.)
 - **Real-time Streaming**: See responses appear word-by-word like ChatGPT
+- **Source Citations**: Every answer links to sources (PDFs, ARAM site, web search, Google Maps)
 - **MLOps Ready**: LangSmith integration for tracing and monitoring
 
 ---
@@ -48,6 +49,7 @@ graph TD
     end
     
     Frontend -->|HTTP Request| Backend[FastAPI Backend]
+    Frontend -->|PDF links| PdfApi
     
     subgraph Backend["Backend (FastAPI)"]
         Agent[LangChain Agent]
@@ -64,6 +66,10 @@ graph TD
     
     subgraph Database["Database"]
         VectorDB[(PostgreSQL + pgvector)]
+    end
+    
+    subgraph PdfApi["PDF API (optional separate deploy)"]
+        Serve["GET /pdfs/{filename}"]
     end
 
     style User fill:#f9f,stroke:#333,stroke-width:2px
@@ -85,6 +91,7 @@ graph TD
 | **Places Tool** | Find coffee shops via Google Places API |
 | **Tavily Tool** | Web search for current/missing information |
 | **PostgreSQL + pgvector** | Store document embeddings for similarity search |
+| **PDF API** | Lightweight separate service that serves PDFs (avoids Vercel 250MB limit on main backend) |
 
 ---
 
@@ -236,20 +243,23 @@ brazilian-coffee-chatbot/
 │   │   ├── ingestion/
 │   │   │   ├── pdf_loader.py      # PDF processing with OCR
 │   │   │   ├── web_scraper.py     # ARAM website scraper
-│   │   │   └── embedder.py        # Embedding pipeline
+│   │   │   └── embedder.py        # Embedding pipeline (reads from pdf-api/pdfs/)
 │   │   ├── tools/
 │   │   │   ├── rag_tool.py        # Knowledge base search
 │   │   │   ├── places_tool.py     # Google Places API
 │   │   │   └── search_tool.py     # Tavily web search
-│   │   ├── main.py                # FastAPI application
+│   │   ├── main.py                # FastAPI application (no PDF route)
 │   │   └── settings.py            # Environment config
-│   ├── pdfs/                      # Knowledge base PDFs
 │   ├── docker-compose.yml         # PostgreSQL + pgvector
 │   └── requirements.txt
+├── pdf-api/
+│   ├── main.py                    # Minimal FastAPI app: GET /pdfs/{filename}
+│   ├── pdfs/                      # Knowledge base PDFs (single source of truth)
+│   └── requirements.txt           # fastapi, uvicorn only (light for Vercel)
 ├── frontend/
 │   ├── src/
 │   │   ├── app/                   # Next.js App Router
-│   │   ├── components/Chat/       # Chat UI components
+│   │   ├── components/Chat/       # Chat UI + source citation pills
 │   │   ├── hooks/useChat.ts       # Streaming chat hook
 │   │   └── lib/api.ts             # Backend API client
 │   └── tailwind.config.ts         # Coffee color theme
@@ -282,6 +292,8 @@ cp .env.example .env
 
 ### 2. Environment Variables
 
+**Backend** (`backend/.env`):
+
 ```env
 # Required
 GOOGLE_API_KEY=your-gemini-api-key
@@ -290,6 +302,13 @@ GOOGLE_API_KEY=your-gemini-api-key
 TAVILY_API_KEY=your-tavily-key
 GPLACES_API_KEY=your-google-places-key
 LANGSMITH_API_KEY=your-langsmith-key
+```
+
+**Frontend** (`frontend/.env`):
+
+```env
+NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_PDF_API_URL=http://localhost:8001
 ```
 
 ### 3. Start Database
@@ -305,17 +324,25 @@ docker-compose up -d
 cd backend
 pip install -r requirements.txt
 
-# Optional: Download additional PDFs to backend/pdfs/
-# Example: wget https://fundar.org.br/wp-content/uploads/2021/06/pequena-historia-do-cafe-no-brasil.pdf -O backend/pdfs/pequena-historia-do-cafe-no-brasil.pdf
-
-# Ingest documents (one-time)
+# Ingest documents (one-time; reads from pdf-api/pdfs/)
 python -m app.ingestion.embedder
 
 # Start server
 python -m app.main
 ```
 
-**💡 Tip**: You can add more PDFs to `backend/pdfs/` before running ingestion. For example, download [Pequena História do Café no Brasil](https://fundar.org.br/wp-content/uploads/2021/06/pequena-historia-do-cafe-no-brasil.pdf) to expand your knowledge base.
+### 4b. (Optional) Run PDF API
+
+Citation links to PDFs point at a separate lightweight service so the main backend stays under Vercel’s size limit. Locally, run it on port 8001:
+
+```bash
+cd pdf-api
+pip install -r requirements.txt
+make run
+# or: uvicorn main:app --reload --port 8001
+```
+
+**💡 Tip**: Add PDFs to `pdf-api/pdfs/` before running ingestion. The embedder reads from that folder. For production, deploy `pdf-api/` as a second Vercel project and set `NEXT_PUBLIC_PDF_API_URL` to its URL.
 
 ### 5. Install & Run Frontend
 
@@ -381,6 +408,12 @@ Load chat history for a session.
 ### DELETE /sessions/{session_id}
 
 Clear all messages for a session.
+
+### PDF API (separate service)
+
+If you run the `pdf-api` service (e.g. `http://localhost:8001`):
+
+- **GET /pdfs/{filename}** — Serves a PDF from `pdf-api/pdfs/`. Used by the frontend for source citation links.
 
 ---
 
