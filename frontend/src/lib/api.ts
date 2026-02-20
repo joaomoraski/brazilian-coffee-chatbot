@@ -2,10 +2,20 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 const SESSION_KEY = "coffee_chat_session_id";
 
+export interface Source {
+  name: string;
+  url: string;
+}
+
 export interface Message {
   role: "user" | "assistant";
   content: string;
+  sources?: Source[];
 }
+
+export type StreamChunk =
+  | { type: "text"; data: string }
+  | { type: "sources"; data: Source[] };
 
 export function getSessionId(): string {
   if (typeof window === "undefined") return generateSessionId();
@@ -83,7 +93,7 @@ export async function sendMessage(message: string): Promise<string> {
 
 export async function* streamMessage(
   message: string
-): AsyncGenerator<string, void, unknown> {
+): AsyncGenerator<StreamChunk, void, unknown> {
   const sessionId = getSessionId();
 
   const response = await fetch(`${API_URL}/chat/stream`, {
@@ -126,22 +136,29 @@ export async function* streamMessage(
       const lines = part.split("\n");
       let eventData = "";
       let isDone = false;
+      let isSources = false;
+      // Track whether we have seen at least one data: line so we can
+      // correctly reconstruct newlines at the START of a chunk
+      // (e.g. "\n\n### Heading" is encoded as three empty/non-empty data: lines
+      // and the leading newlines must not be silently dropped).
+      let hasData = false;
 
       for (const line of lines) {
         if (line.startsWith("event: done")) {
           isDone = true;
+        } else if (line.startsWith("event: sources")) {
+          isSources = true;
         } else if (line.startsWith("data:")) {
-          // Remove "data:" prefix
           let content = line.slice(5);
-          // Remove optional leading space (standard in SSE: "data: value")
           if (content.startsWith(" ")) {
             content = content.slice(1);
           }
 
-          if (eventData) {
+          if (hasData) {
             eventData += "\n";
           }
           eventData += content;
+          hasData = true;
         }
       }
 
@@ -150,7 +167,11 @@ export async function* streamMessage(
       }
 
       if (eventData) {
-        yield eventData;
+        if (isSources) {
+          yield { type: "sources", data: JSON.parse(eventData) };
+        } else {
+          yield { type: "text", data: eventData };
+        }
       }
     }
   }
