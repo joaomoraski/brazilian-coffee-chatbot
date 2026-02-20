@@ -1,3 +1,5 @@
+import json
+
 from langchain_core.tools import tool
 
 from app.db.vector_store import get_retriever
@@ -27,11 +29,25 @@ def search_coffee_knowledge(query: str) -> str:
     if not docs:
         return "No relevant information found in the knowledge base."
 
-    # Format results
     results = []
-    for i, doc in enumerate(docs, 1):
-        source = doc.metadata.get("source", "Unknown")
-        content = doc.page_content[:500]  # Limit content length
-        results.append(f"[Source {i}: {source}]\n{content}")
+    seen_sources = set()
+    sources_meta = []
 
-    return "\n\n---\n\n".join(results)
+    for doc in docs:
+        content = doc.page_content[:500]
+        results.append(content)
+
+        source_name = doc.metadata.get("source", "Unknown")
+        source_type = doc.metadata.get("type", "")
+
+        if source_name not in seen_sources:
+            seen_sources.add(source_name)
+            if source_type == "web":
+                url = source_name
+            else:
+                url = f"/pdfs/{source_name}"
+            sources_meta.append({"name": source_name, "url": url})
+
+    text = "\n\n---\n\n".join(results)
+    text += f"\n\n[SOURCES_META]{json.dumps(sources_meta)}[/SOURCES_META]"
+    return text

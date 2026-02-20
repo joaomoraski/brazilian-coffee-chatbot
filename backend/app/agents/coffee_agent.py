@@ -1,3 +1,5 @@
+import json
+import re
 from typing import AsyncGenerator
 
 from langchain.agents import create_agent
@@ -34,14 +36,20 @@ You have access to a comprehensive knowledge base about:
 
 4. If you don't know something, say so honestly and use the web search tool.
 
-5. **IMPORTANT - Stay on Topic:**
+5. **Source Attribution:** When using information from any tool, naturally mention the source in your answer:
+   - For knowledge base results: mention the document name. Example: 'According to *metodos-de-preparo.pdf*, the V60 method...'
+   - For web search results: mention the article or website title. Example: 'According to Reuters, Starbucks sources...'
+   - For coffee shop results: mention the place name naturally in your response.
+   - Do not list all sources at the end; weave them naturally into the text.
+
+6. **IMPORTANT - Stay on Topic:**
    - You ONLY answer questions about coffee, specifically Brazilian coffee.
    - If the user asks about unrelated topics (fruits like mango, animals like monkeys, politics, sports, etc.), politely decline and redirect to coffee.
    - Do NOT use any tools (web search, places, knowledge base) for off-topic questions.
    - For off-topic requests, respond with something like: "I'm specialized in Brazilian coffee! I can't help with [topic], but I'd love to tell you about coffee. What would you like to know about Brazilian coffee?"
    - Only use tools when the question is clearly about coffee or finding coffee shops.
 
-6. Always answer in Markdown format.
+7. Always answer in Markdown format.
 """
 
 
@@ -93,10 +101,10 @@ def create_coffee_agent():
     return agent
 
 
-async def chat(message: str, session_id: str) -> AsyncGenerator[str, None]:
+async def chat(message: str, session_id: str) -> AsyncGenerator[str | dict, None]:
     """
     Chat with the coffee agent using session history.
-    
+
     Streams response chunks directly from the model as they are generated,
     providing true real-time streaming without buffering.
 
@@ -106,13 +114,14 @@ async def chat(message: str, session_id: str) -> AsyncGenerator[str, None]:
 
     Yields:
         Streamed response chunks directly from the LLM
-    
+
     Raises:
         Exception: If any error occurs during chat processing
     """
     import logging
+
     logger = logging.getLogger(__name__)
-    
+
     try:
         agent = create_coffee_agent()
 
@@ -135,49 +144,58 @@ async def chat(message: str, session_id: str) -> AsyncGenerator[str, None]:
             # Stream response directly from agent using astream
             # Filter to only stream the FINAL AI response, not intermediate tool results
             response_parts = []
-            
+            collected_sources = []
+
             async for chunk in agent.astream(
                 {"messages": messages},
-                stream_mode="messages",  # Stream message chunks directly
+                stream_mode="messages",
             ):
-                # Extract content from the message chunk
-                # chunk is a tuple: (message, metadata)
                 if isinstance(chunk, tuple):
                     msg, metadata = chunk
                 else:
                     msg = chunk
-                
-                # CRITICAL FILTER: Only stream AIMessage (final response), skip ToolMessage (tool results)
-                # This prevents streaming raw tool outputs (like PDF chunks) to the user
-                from langchain_core.messages import AIMessage as AIMessageType, ToolMessage
-                
-                # Skip tool messages (intermediate results from tools)
+
+                from langchain_core.messages import (
+                    AIMessage as AIMessageType,
+                    ToolMessage,
+                )
+
                 if isinstance(msg, ToolMessage):
+                    tool_content = msg.content if isinstance(msg.content, str) else ""
+                    match = re.search(
+                        r"\[SOURCES_META\](.*?)\[/SOURCES_META\]",
+                        tool_content,
+                        re.DOTALL,
+                    )
+                    if match:
+                        try:
+                            collected_sources.extend(json.loads(match.group(1)))
+                        except json.JSONDecodeError:
+                            pass
                     continue
-                
-                # Only process AI messages (final response from LLM after using tools)
+
                 if not isinstance(msg, AIMessageType):
                     continue
-                    
-                # Get the actual message content
+
                 if hasattr(msg, "content") and msg.content:
                     content = msg.content
-                    
-                    # Handle string content
+
                     if isinstance(content, str) and content.strip():
                         response_parts.append(content)
-                        yield content  # Yield immediately without buffering
-                    # Handle list of content blocks (Gemini format)
+                        yield content
                     elif isinstance(content, list):
                         for item in content:
                             if isinstance(item, dict) and "text" in item:
                                 text = item["text"]
                                 if text and text.strip():
                                     response_parts.append(text)
-                                    yield text  # Yield immediately
+                                    yield text
                             elif isinstance(item, str) and item.strip():
                                 response_parts.append(item)
-                                yield item  # Yield immediately
+                                yield item
+
+            if collected_sources:
+                yield {"sources": collected_sources}
 
             # Save messages to history after streaming completes
             complete_response = "".join(response_parts)
@@ -185,7 +203,7 @@ async def chat(message: str, session_id: str) -> AsyncGenerator[str, None]:
                 history_manager.add_user_message(message)
                 history_manager.add_ai_message(complete_response)
             # Connection automatically returned to pool when context exits
-            
+
     except Exception as e:
         logger.error(f"Error in chat for session {session_id}: {str(e)}", exc_info=True)
         raise

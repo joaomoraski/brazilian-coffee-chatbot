@@ -1,9 +1,12 @@
+import json
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 from uuid import UUID
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
@@ -62,6 +65,15 @@ async def root():
     return {"status": "healthy", "service": "Brazilian Coffee Chatbot"}
 
 
+@app.get("/pdfs/{filename}")
+async def serve_pdf(filename: str):
+    """Serve a PDF file from the pdfs directory."""
+    pdf_path = Path(__file__).resolve().parent.parent / "pdfs" / filename
+    if not pdf_path.exists():
+        raise HTTPException(status_code=404, detail="PDF not found")
+    return FileResponse(pdf_path, media_type="application/pdf")
+
+
 @app.get("/sessions/{session_id}/messages")
 async def get_session_messages_endpoint(session_id: UUID):
     try:
@@ -99,8 +111,14 @@ async def chat_stream_endpoint(request: ChatRequest):
     """
     async def generate():
         try:
+            sources = None
             async for chunk in chat(request.message, str(request.session_id)):
-                yield {"event": "message", "data": chunk}
+                if isinstance(chunk, dict) and "sources" in chunk:
+                    sources = chunk["sources"]
+                else:
+                    yield {"event": "message", "data": chunk}
+            if sources:
+                yield {"event": "sources", "data": json.dumps(sources)}
             yield {"event": "done", "data": ""}
         except Exception as e:
             logger.error(f"Stream error for session {request.session_id}: {str(e)}", exc_info=True)

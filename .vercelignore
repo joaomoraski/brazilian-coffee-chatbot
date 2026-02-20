@@ -1,4 +1,3 @@
-**/*.pdf
 chroma/
 vectorstore/
 *.sqlite
