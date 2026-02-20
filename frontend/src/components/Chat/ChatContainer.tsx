@@ -68,6 +68,7 @@ export default function ChatContainer() {
               role={message.role}
               content={message.content}
               isStreaming={isLoading && index === messages.length - 1 && message.role === "assistant"}
+              sources={message.sources}
             />
           ))
         )}

@@ -1,3 +1,4 @@
+import json
 import logging
 from contextlib import asynccontextmanager
 from uuid import UUID
@@ -62,6 +63,7 @@ async def root():
     return {"status": "healthy", "service": "Brazilian Coffee Chatbot"}
 
 
+
 @app.get("/sessions/{session_id}/messages")
 async def get_session_messages_endpoint(session_id: UUID):
     try:
@@ -99,8 +101,14 @@ async def chat_stream_endpoint(request: ChatRequest):
     """
     async def generate():
         try:
+            sources = None
             async for chunk in chat(request.message, str(request.session_id)):
-                yield {"event": "message", "data": chunk}
+                if isinstance(chunk, dict) and "sources" in chunk:
+                    sources = chunk["sources"]
+                else:
+                    yield {"event": "message", "data": chunk}
+            if sources:
+                yield {"event": "sources", "data": json.dumps(sources)}
             yield {"event": "done", "data": ""}
         except Exception as e:
             logger.error(f"Stream error for session {request.session_id}: {str(e)}", exc_info=True)

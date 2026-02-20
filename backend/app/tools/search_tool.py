@@ -1,3 +1,5 @@
+import json
+
 from langchain_core.tools import tool
 from tavily import TavilyClient
 
@@ -34,15 +36,22 @@ def search_web(query: str) -> str:
         if not response.get("results"):
             return "No results found on the web."
 
-        # Format results
         results = []
+        seen = set()
+        sources_meta = []
+
         for r in response["results"]:
             title = r.get("title", "No title")
             content = r.get("content", "")[:300]
             url = r.get("url", "")
-            results.append(f"**{title}**\n{content}\nSource: {url}")
+            results.append(f"**{title}**\n{content}")
+            if url and url not in seen:
+                seen.add(url)
+                sources_meta.append({"name": title, "url": url})
 
-        return "\n\n---\n\n".join(results)
+        text = "\n\n---\n\n".join(results)
+        text += f"\n\n[SOURCES_META]{json.dumps(sources_meta)}[/SOURCES_META]"
+        return text
 
     except Exception as e:
         return f"Error performing web search: {str(e)}"

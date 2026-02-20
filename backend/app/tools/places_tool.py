@@ -1,3 +1,5 @@
+import json
+
 import httpx
 from langchain_core.tools import tool
 
@@ -45,19 +47,33 @@ def find_coffee_shops(location: str) -> str:
 
         # Format results
         formatted = []
+        sources_meta = []
+
         for place in results:
             name = place.get("name", "Unknown")
             address = place.get("formatted_address", "Address not available")
             rating = place.get("rating", "N/A")
             total_ratings = place.get("user_ratings_total", 0)
-            
+            place_id = place.get("place_id", "")
+
             formatted.append(
                 f"**{name}**\n"
                 f"📍 {address}\n"
                 f"⭐ {rating}/5 ({total_ratings} reviews)"
             )
 
-        return "\n\n---\n\n".join(formatted)
+            # Build a direct Google Maps link via place_id when available
+            if place_id:
+                maps_url = f"https://www.google.com/maps/place/?q=place_id:{place_id}"
+            else:
+                query_str = f"{name} {address}".replace(" ", "+")
+                maps_url = f"https://www.google.com/maps/search/?api=1&query={query_str}"
+
+            sources_meta.append({"name": name, "url": maps_url})
+
+        text = "\n\n---\n\n".join(formatted)
+        text += f"\n\n[SOURCES_META]{json.dumps(sources_meta)}[/SOURCES_META]"
+        return text
 
     except httpx.TimeoutException:
         return "Request timed out. Please try again."

@@ -3,6 +3,7 @@
 import { useState, useCallback, useEffect } from "react";
 import {
   Message,
+  Source,
   streamMessage,
   getSessionId,
   loadSessionMessages,
@@ -67,18 +68,31 @@ export function useChat(): UseChatReturn {
       try {
         let fullContent = "";
         let hasContent = false;
+        let sources: Source[] | undefined;
 
         for await (const chunk of streamMessage(content)) {
-          fullContent += chunk;
-          hasContent = true;
-          setMessages((prev) => {
-            const newMessages = [...prev];
-            const lastMessage = newMessages[newMessages.length - 1];
-            if (lastMessage.role === "assistant") {
-              lastMessage.content = fullContent;
-            }
-            return newMessages;
-          });
+          if (chunk.type === "text") {
+            fullContent += chunk.data;
+            hasContent = true;
+            setMessages((prev) => {
+              const newMessages = [...prev];
+              const lastMessage = newMessages[newMessages.length - 1];
+              if (lastMessage.role === "assistant") {
+                lastMessage.content = fullContent;
+              }
+              return newMessages;
+            });
+          } else if (chunk.type === "sources") {
+            sources = chunk.data;
+            setMessages((prev) => {
+              const newMessages = [...prev];
+              const lastMessage = newMessages[newMessages.length - 1];
+              if (lastMessage.role === "assistant") {
+                lastMessage.sources = sources;
+              }
+              return newMessages;
+            });
+          }
         }
 
         // If no content was streamed, there was likely an error

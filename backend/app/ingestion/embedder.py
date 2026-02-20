@@ -89,7 +89,7 @@ if __name__ == "__main__":
     import time
 
     start_time = time.time()
-    pdf_dir = os.path.join(os.path.dirname(__file__), "..", "..", "pdfs")
+    pdf_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..", "pdf-api", "pdfs")
     count = ingest_all_documents(pdf_dir)
     
     elapsed = time.time() - start_time
