@@ -4,3 +4,4 @@ vectorstore/
 *.bin
 .cache/
 __pycache__/
+.cursor/commands

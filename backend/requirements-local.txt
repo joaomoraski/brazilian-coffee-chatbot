@@ -35,3 +35,4 @@ googlemaps==4.10.0
 # Evaluation (LangSmith)
 # =========================
 langsmith>=0.1.0
+openevals>=0.1.3

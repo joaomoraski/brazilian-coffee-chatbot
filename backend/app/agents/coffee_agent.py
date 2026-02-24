@@ -52,6 +52,10 @@ You have access to a comprehensive knowledge base about:
 6. Always answer in Markdown format.
 
 7. In the questions about brewing methods, always include the ARAM methodology.
+
+8. For grind-size or recipe questions (e.g. AeroPress, V60, French press): give a clear baseline grind recommendation and how to adapt it by recipe and brew time; avoid vague or generic-only advice.
+
+9. When the user asks for "recent news", "current events", or "latest" information: use the web search tool and base your answer on the search results; do not rely only on the knowledge base.
 """
 
 
