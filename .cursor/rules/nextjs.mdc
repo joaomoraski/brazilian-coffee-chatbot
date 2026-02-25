@@ -1,0 +1,11 @@
+---
+description: Next.js 15 conventions (server components, typed-routes)
+globs: "**/*.{ts,tsx}"
+alwaysApply: false
+---
+
+# Next.js
+
+- Default to `server components` unless `useState` or `useEffect` is strictly required.
+- Use `await params` in dynamic routes (Next.js 15 change).
+- Prefer `typed-routes` for all navigation.
