@@ -20,6 +20,7 @@ Built with **RAG (Retrieval-Augmented Generation)** architecture using LangChain
 - [Project Structure](#-project-structure)
 - [Setup](#-setup)
 - [Usage](#-usage)
+- [Evaluation](#-evaluation)
 - [API Reference](#-api-reference)
 
 ---
@@ -34,6 +35,7 @@ Built with **RAG (Retrieval-Augmented Generation)** architecture using LangChain
 - **Real-time Streaming**: See responses appear word-by-word like ChatGPT
 - **Source Citations**: Every answer links to sources (PDFs, ARAM site, web search, Google Maps)
 - **MLOps Ready**: LangSmith integration for tracing and monitoring
+- **Eval feedback loop**: Offline evals on a 59-example LangSmith dataset with regression checks and failing-case summary to guide agent improvements
 
 ---
 
@@ -248,6 +250,9 @@ brazilian-coffee-chatbot/
 │   │   │   ├── rag_tool.py        # Knowledge base search
 │   │   │   ├── places_tool.py     # Google Places API
 │   │   │   └── search_tool.py     # Tavily web search
+│   │   ├── evals/
+│   │   │   ├── dataset.py         # Eval examples (LangSmith dataset)
+│   │   │   └── eval.py            # Eval runner, regression check, failing-case summary
 │   │   ├── main.py                # FastAPI application (no PDF route)
 │   │   └── settings.py            # Environment config
 │   ├── docker-compose.yml         # PostgreSQL + pgvector
@@ -301,7 +306,7 @@ GOOGLE_API_KEY=your-gemini-api-key
 # Optional (for full features)
 TAVILY_API_KEY=your-tavily-key
 GPLACES_API_KEY=your-google-places-key
-LANGSMITH_API_KEY=your-langsmith-key
+LANGSMITH_API_KEY=your-langsmith-key   # Required for evals
 ```
 
 **Frontend** (`frontend/.env`):
@@ -373,6 +378,17 @@ Open http://localhost:3000
 cd backend
 python -m app.ingestion.embedder
 ```
+
+### Evaluation
+
+Run evals against the coffee chatbot using a LangSmith dataset. Requires a virtualenv with dependencies from `requirements-local.txt` (e.g. `brazil-coffee-chatbot`). From the **backend** directory:
+
+```bash
+make dataset   # Sync dataset to LangSmith (once)
+make eval      # Run full eval; prints summary and failing cases if correctness < 90%
+```
+
+Results appear in the terminal (experiment name, score %, tool_correctness %) and on LangSmith. The script compares against the previous experiment for regression detection.
 
 ### CLI: Test Web Scraper
 

@@ -30,3 +30,9 @@ langchain-text-splitters>=1.0.0,<2.0.0
 # Google Maps (if needed for places)
 # =========================
 googlemaps==4.10.0
+
+# =========================
+# Evaluation (LangSmith)
+# =========================
+langsmith>=0.1.0
+openevals>=0.1.3

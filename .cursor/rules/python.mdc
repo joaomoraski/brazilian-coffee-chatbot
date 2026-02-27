@@ -1,0 +1,11 @@
+---
+description: Python async IO, Pydantic V2, type hints (3.12+)
+globs: "**/*.py"
+alwaysApply: false
+---
+
+# Python
+
+- All IO-bound operations MUST be `async def`.
+- Use Pydantic V2 `model_validate` patterns.
+- Type hints are mandatory (Python 3.12+ syntax).

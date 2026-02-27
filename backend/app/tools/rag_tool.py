@@ -23,7 +23,7 @@ def search_coffee_knowledge(query: str) -> str:
     Returns:
         Relevant information from the knowledge base
     """
-    retriever = get_retriever(k=5)
+    retriever = get_retriever(k=15)
     docs = retriever.invoke(query)
 
     if not docs:
